@@ -1,0 +1,7 @@
+target
+project
+.metals
+.bloop
+.vscode
+.bsp
+.pytest_cache
