@@ -13,54 +13,50 @@ val test_data = Seq(
 val puzzle_data =
   Source.fromResource("adventofcode/day9.txt").getLines.toList
 
-type FloorMap = Seq[Seq[Int]]
 type Coord = (Int, Int)
+case class FloorMap(private val floor: Seq[Seq[Int]]):
+  def width = floor.head.size
+  def height = floor.size
+  def apply(pt: (Int, Int)) = floor(pt._2)(pt._1)
+  def neighboursOf(pt: (Int, Int)): Seq[Coord] =
+    val (x, y) = pt
+    Seq((x + 1, y), (x - 1, y), (x, y - 1), (x, y + 1))
+      .filterNot((x, y) => (x < 0 || x >= this.width) || (y < 0 || y >= this.height))
 
 def parse(raw_data: Seq[String]): FloorMap =
-  raw_data.map(line => line.map(_.toString.toInt))
-
-def neighbourFinder(width: Int, height: Int)(x: Int, y: Int): Seq[Coord] =
-  Seq((x + 1, y), (x - 1, y), (x, y - 1), (x, y + 1)).filterNot((x, y) =>
-    (x < 0 || x >= width) || (y < 0 || y >= height)
-  )
+  new FloorMap(raw_data.map(line => line.map(_.toString.toInt)))
 
 def findLows(floorMap: FloorMap) =
-  val height = floorMap.size
-  val width = floorMap.head.size
-  val neighboursOf = neighbourFinder(width, height)
   for
-    x <- (0 until width)
-    y <- (0 until height)
-    w = floorMap(y)(x)
-    if neighboursOf(x, y).forall((xn, yn) => floorMap(yn)(xn) > w)
+    x <- (0 until floorMap.width)
+    y <- (0 until floorMap.height)
+    w = floorMap(x, y)
+    if floorMap.neighboursOf(x, y).forall(floorMap(_) > w)
   yield (x, y)
 
 object part1:
   def apply(data: Seq[String]): Int =
     val floorMap = parse(data)
-    findLows(floorMap).map((x, y) => floorMap(y)(x) + 1).sum
+    findLows(floorMap).map(floorMap(_) + 1).sum
 
 def growBasin(floorMap: FloorMap)(low: Coord): Set[Coord] =
-  val height = floorMap.size
-  val width = floorMap.head.size
-  val neighboursOf = neighbourFinder(width, height)
   def inner(pointQueue: List[Coord], basinMembers: Set[Coord]): Set[Coord] =
     pointQueue match
       case Nil => basinMembers
-      case (pt @ (x, y)) :: pts =>
+      case pt :: pts =>
         val newBasinMembers =
-          neighboursOf(x, y)
-            .filter((xn, yn) =>
-              floorMap(yn)(xn) > floorMap(y)(x) && floorMap(yn)(xn) < 9
-            )
+          floorMap
+            .neighboursOf(pt)
+            .filter(nbr_pt => floorMap(nbr_pt) > floorMap(pt) && floorMap(nbr_pt) < 9)
         inner((pts ++ newBasinMembers), (basinMembers ++ newBasinMembers) + pt)
   inner(List(low), Set())
 
 object part2:
   def apply(data: Seq[String]): Int =
     val floorMap = parse(data)
+    val growBasin_ = growBasin(floorMap)
     findLows(floorMap)
-      .map(low => growBasin(floorMap)(low).size)
+      .map(growBasin_(_).size)
       .sortBy(-_)
       .take(3)
       .reduce(_ * _)
